@@ -189,7 +189,7 @@ WHERE btxmas.txno = '817648'
 
 *SQL2同理SQL1*
 
-#####　SQL2改写
+##### SQL2改写
 
 ```sql
 SELECT 0 AS PROC_INST_ID_, BURM.USERNAME, 0 AS TASK_ID_, '' AS ASSIGNEE_, btxmas.LASTMODDATE AS START_TIME_
