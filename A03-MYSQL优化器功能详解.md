@@ -1,18 +1,26 @@
  # A03-MYSQL优化器功能详解
 
 **MySQL 8.0新增特性**
+
+```wiki
 use_invisible_indexes
 	是否使用不可见索引，MySQL 8.0新增可以创建invisible索引，这一开关控制优化器是否使用invisible索引，on表示考虑使用。
+```
 
 **MySQL 5.7新增**
+
+```wiki
 derived_merge
 	派生表合并，类似Oracle的视图合并，当派生SQL中存在以下操作是无法展开UNION 、GROUP 、DISTINCT、LIMIT及聚合操作
 duplicateweedout
 	是否使用使用临时表对semi-join产生的结果集去重
 condition_fanout_filter	
 	cost模型在jion 代价计算时考虑condition,是否还要还要考虑condition上的filter，如果是on表示考虑
-	
+```
+
 **MySQL 5.6 新增**
+
+```wiki
 mrr和mrr_cost_based
        针对多列索引，也叫组合索引来做基本扫描，然后对匹配的记录按照主键排序，这样按照有序的主键顺序从磁盘上扫描需要的全部记录。根本功能是把对磁盘的随机扫描转化为顺序扫描。
 batched_key_access
@@ -36,8 +44,11 @@ loosescan
 	把内表的数据基于索引分组，取每组第一条数据即可。
 materialization和subquery_materialization_cost_based
 	把内表去重然后生成有对应索引的临时表（有点类似其他数据中的物化视图），然后通过外表的对应键值遍历这张临时表。
+```
 
 **MySQL 5.5及以下版本新增**
+
+```wiki
 engine_condition_pushdown 
 	只用于NDB引擎，开启后时按照WHERE条件过滤后的数据发送到SQL节点来处理，不开启所有数据节点的数据都发送到SQL节点来处理。
 index_merge 
@@ -48,8 +59,9 @@ index_merge
 	index_merge_sort_union
 		用于OR，把所有相关索引连接起来，找到记录对应的ROWID，并且好顺序，然后根据ROWID获取磁盘上的数据。
 
+```
 
-​		
+
 参考文档(除官档外)：	
 http://blog.sina.com.cn/s/blog_4673e60301011qvx.html  mysql中semi-join的优化策略介绍
 http://ourmysql.com/archives/1225   MySQL 5.6里坑人的index_condition_pushdown  
