@@ -1,0 +1,272 @@
+# 一次表字符集不同引起的血案
+
+
+
+源SQL
+
+```sql
+explain SELECT
+	O.AttachmentNo AS AttachmentNo,
+	O.FileName AS FileName,
+	O.FileType AS FileType,
+	O. PASSWORD AS PASSWORD,
+	O.ContentType AS ContentType,
+	O.EndTime AS EndTime,
+	O.ContentLength AS ContentLength,
+	O.INPUTUSER AS INPUTUSER,
+	O.REMARK AS REMARK,
+	O.UPLOADADDRESS AS UPLOADADDRESS,
+	O.UPLOADWAY AS UPLOADWAY,
+	O.PICTUREREMARK AS PICTUREREMARK,
+	O.FILEPATH AS FILEPATH
+FROM
+	DOC_ATTACHMENT O
+WHERE
+	O.DOCNO IN (
+		SELECT
+			O.DOCNO AS DOCNO
+		FROM
+			DOC_ATTACHMENT O
+		WHERE
+			O.DOCNO IN (
+				SELECT
+					SIV2.DOCNO AS DOCNO
+				FROM
+					SUB_INFO_VERIFICATION SIV2
+				WHERE
+					SIV2.CUSTOMERID = 'ET0100000408'
+				UNION
+					SELECT
+						O.docno AS docno
+					FROM
+						DOC_ATTACHMENT O
+					WHERE
+						O.DOCNO IN (
+							SELECT
+								DR.DOCNO AS DOCNO
+							FROM
+								DOC_RELATIVE DR,
+								DOC_LIBRARY DL
+							WHERE
+								DR.docno = DL.DOCNO
+							AND DL.DOCTYPE = '100108'
+							AND DR.objectno IN (
+								SELECT
+									PI.progNo AS progNo
+								FROM
+									programmer_info PI
+								WHERE
+									PI.cust_id = 'ET0100000408'
+							)
+						)
+			)
+	)
+ORDER BY
+	O.BEGINTIME DESC
+
+39.821s 8条
+```
+
+![1575944128823](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1575944128823.png)
+
+![1575944137982](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1575944137982.png)
+
+![1576054357893](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1576054357893.png)
+
+```sql
+CREATE TABLE `doc_attachment` (
+  `DOCNO` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `ATTACHMENTNO` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `FILENAME` varchar(250) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `CONTENTTYPE` varchar(80) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `CONTENTLENGTH` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `CONTENTSTATUS` varchar(18) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `BEGINTIME` varchar(20) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `ENDTIME` varchar(20) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `DOCCONTENT` mediumtext,
+  `INPUTUSER` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `INPUTORG` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `INPUTTIME` varchar(20) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `UPDATEUSER` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `UPDATETIME` varchar(20) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `REMARK` varchar(250) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `filepath` varchar(320) DEFAULT NULL,
+  `FULLPATH` varchar(200) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `FILESAVEMODE` varchar(18) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `FILETYPE` varchar(10) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `ALIYUNKEY` varchar(100) DEFAULT NULL COMMENT '阿里云key',
+  `PASSWORD` varchar(20) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL COMMENT 'URL密码',
+  `UPLOADADDRESS` varchar(255) DEFAULT NULL COMMENT '上传地址',
+  `UPLOADWAY` varchar(10) DEFAULT NULL COMMENT '上传方式',
+  `PICTUREREMARK` varchar(1000) DEFAULT NULL COMMENT '图片备注说明',
+  PRIMARY KEY (`ATTACHMENTNO`,`DOCNO`),
+  KEY `i_doc_att` (`DOCNO`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8
+
+
+CREATE TABLE `sub_info_verification` (
+  `VERSERIALNO` varchar(255) NOT NULL COMMENT '核查流水号',
+  `QUERYTIME` varchar(255) DEFAULT NULL COMMENT '查询时间',
+  `QUERYDEP` varchar(255) DEFAULT NULL COMMENT '查询部门',
+  `QUERYPERSON` varchar(255) DEFAULT NULL COMMENT '查询人员',
+  `EXCINFOSITUATION` varchar(255) DEFAULT NULL COMMENT '异常信息情况',
+  `ENTINFOVERREPSTATUS` varchar(255) DEFAULT NULL COMMENT '企业信息核查报告状态',
+  `CUSTOMERID` varchar(255) DEFAULT NULL COMMENT '客户编号',
+  `CUSTOMERNAME` varchar(255) DEFAULT NULL COMMENT '客户名称',
+  `EXCINFOEXPLAIN` varchar(255) DEFAULT NULL COMMENT '异常信息说明',
+  `PDFURL` varchar(255) DEFAULT NULL COMMENT 'PDF报告下载链接',
+  `WORDURL` varchar(255) DEFAULT NULL COMMENT 'word报告下载链接',
+  `VerPhase` varchar(80) DEFAULT NULL COMMENT '核查阶段',
+  `DOCNO` varchar(255) DEFAULT NULL COMMENT '文档编号',
+  PRIMARY KEY (`VERSERIALNO`),
+  KEY `i_custid` (`CUSTOMERID`) USING BTREE,
+  KEY `i_DOCNO` (`DOCNO`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=gbk
+```
+
+依据执行计划将排序字段添加到索引中：
+
+```sql
+alter table drop index  i_doc_att;
+
+alter table add index i_doc_att('DOCNO','BEGINTIME')
+```
+
+> 通过验证，对性能提升没作用。已回退。
+
+
+
+通过由内到外拆分SQL，查找原因：
+
+```sql
+SELECT
+	PI.progNo AS progNo
+FROM
+	programmer_info PI
+WHERE
+	PI.cust_id = 'ET0100000408'
+	
+0.802S  7条
+
+
+SELECT
+	DR.DOCNO AS DOCNO
+FROM
+	DOC_RELATIVE DR,
+	DOC_LIBRARY DL
+WHERE
+	DR.docno = DL.DOCNO
+AND DL.DOCTYPE = '100108'
+AND DR.objectno IN (
+	SELECT
+		PI.progNo AS progNo
+	FROM
+		programmer_info PI
+	WHERE
+		PI.cust_id = 'ET0100000408'
+)
+0.551S 5条
+
+SELECT
+	O.docno AS docno
+FROM
+	DOC_ATTACHMENT O
+WHERE
+	O.DOCNO IN (
+		SELECT
+			DR.DOCNO AS DOCNO
+		FROM
+			DOC_RELATIVE DR,
+			DOC_LIBRARY DL
+		WHERE
+			DR.docno = DL.DOCNO
+		AND DL.DOCTYPE = '100108'
+		AND DR.objectno IN (
+			SELECT
+				PI.progNo AS progNo
+			FROM
+				programmer_info PI
+			WHERE
+				PI.cust_id = 'ET0100000408'
+		)
+	)
+0.500S 4条
+
+SELECT
+	SIV2.DOCNO AS DOCNO
+FROM
+	SUB_INFO_VERIFICATION SIV2
+WHERE
+	SIV2.CUSTOMERID = 'ET0100000408'
+UNION
+	SELECT
+		O.docno AS docno
+	FROM
+		DOC_ATTACHMENT O
+	WHERE
+		O.DOCNO IN (
+			SELECT
+				DR.DOCNO AS DOCNO
+			FROM
+				DOC_RELATIVE DR,
+				DOC_LIBRARY DL
+			WHERE
+				DR.docno = DL.DOCNO
+			AND DL.DOCTYPE = '100108'
+			AND DR.objectno IN (
+				SELECT
+					PI.progNo AS progNo
+				FROM
+					programmer_info PI
+				WHERE
+					PI.cust_id = 'ET0100000408'
+			)
+		)
+0.493S 23条
+
+
+SELECT
+	O.DOCNO AS DOCNO
+FROM
+	DOC_ATTACHMENT O
+WHERE
+	O.DOCNO IN (
+		SELECT
+			SIV2.DOCNO AS DOCNO
+		FROM
+			SUB_INFO_VERIFICATION SIV2
+		WHERE
+			SIV2.CUSTOMERID = 'ET0100000408'
+		UNION
+			SELECT
+				O.docno AS docno
+			FROM
+				DOC_ATTACHMENT O
+			WHERE
+				O.DOCNO IN (
+					SELECT
+						DR.DOCNO AS DOCNO
+					FROM
+						DOC_RELATIVE DR,
+						DOC_LIBRARY DL
+					WHERE
+						DR.docno = DL.DOCNO
+					AND DL.DOCTYPE = '100108'
+					AND DR.objectno IN (
+						SELECT
+							PI.progNo AS progNo
+						FROM
+							programmer_info PI
+						WHERE
+							PI.cust_id = 'ET0100000408'
+					)
+				)
+	)
+	
+38.420S  8条
+
+```
+
+>主要原因是DOC_ATTACHMENT.O.DOCNO 字段与SUB_INFO_VERIFICATION.SIV2.DOCNO 比较性能消耗较大。通过比对表的DDL，两边字符集不同。
+>
+>建议将两张表的字符集调整相同。
