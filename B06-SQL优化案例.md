@@ -105,7 +105,7 @@ CREATE TABLE `doc_attachment` (
 
 
 CREATE TABLE `sub_info_verification` (
-  `VERSERIALNO` varchar(255) NOT NULL COMMENT '核查流水号',
+  `VERSERIALNO` varchar(255) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL COMMENT '核查流水号',
   `QUERYTIME` varchar(255) DEFAULT NULL COMMENT '查询时间',
   `QUERYDEP` varchar(255) DEFAULT NULL COMMENT '查询部门',
   `QUERYPERSON` varchar(255) DEFAULT NULL COMMENT '查询人员',
@@ -122,6 +122,37 @@ CREATE TABLE `sub_info_verification` (
   KEY `i_custid` (`CUSTOMERID`) USING BTREE,
   KEY `i_DOCNO` (`DOCNO`) USING BTREE
 ) ENGINE=InnoDB DEFAULT CHARSET=gbk
+
+CREATE TABLE `doc_relative` (
+  `docno` varchar(32) COLLATE utf8_bin NOT NULL,
+  `objecttype` varchar(40) COLLATE utf8_bin NOT NULL,
+  `objectno` varchar(32) COLLATE utf8_bin NOT NULL,
+  `objectname` varchar(80) COLLATE utf8_bin DEFAULT NULL,
+  PRIMARY KEY (`docno`,`objecttype`,`objectno`),
+  UNIQUE KEY `pk_doc_relative` (`docno`,`objecttype`,`objectno`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COLLATE=utf8_bin
+
+CREATE TABLE `doc_library` (
+  `DOCNO` varchar(40) CHARACTER SET utf8 COLLATE utf8_bin NOT NULL,
+  `DOCTYPE` varchar(18) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT '',
+  `SUBDOCTYPE` varchar(18) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT '',
+  `DOCTITLE` varchar(80) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `DOCSOURCE` varchar(80) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `DOCUNIT` varchar(80) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `DOCDATE` varchar(10) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `DOCORGANIZER` varchar(80) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `DOCKEYWORD` varchar(250) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `DOCABSTRACT` varchar(250) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `INPUTUSERID` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `INPUTORGID` varchar(80) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `INPUTTIME` varchar(20) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `UPDATEUSERIUD` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `UPDATETIME` varchar(20) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `SORTNO` varchar(32) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  `REMARK` varchar(400) CHARACTER SET utf8 COLLATE utf8_bin DEFAULT NULL,
+  PRIMARY KEY (`DOCNO`),
+  KEY `i_docno` (`DOCNO`,`DOCTYPE`) USING BTREE
+) ENGINE=InnoDB DEFAULT CHARSET=utf8 COMMENT='附件信息'
 ```
 
 依据执行计划将排序字段添加到索引中：
