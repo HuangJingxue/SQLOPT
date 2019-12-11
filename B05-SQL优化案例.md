@@ -6,7 +6,7 @@
 
 · 如果是OLTP场景，建议做分页来提高效率
 
-![img](file:///C:\Users\Apple\AppData\Local\Temp\ksohtml7084\wps1.jpg)
+![img](pic\wps1.jpg)
 
 这个1是查找当前会员购买总金额 2是查找当前会员对应的介绍人 
 

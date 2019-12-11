@@ -67,11 +67,11 @@ ORDER BY
 39.821s 8条
 ```
 
-![1575944128823](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1575944128823.png)
+![1575944128823](pic\1575944128823.png)
 
-![1575944137982](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1575944137982.png)
+![1575944137982](pic\1575944137982.png)
 
-![1576054357893](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1576054357893.png)
+![1576054357893](pic\1576054357893.png)
 
 ```sql
 CREATE TABLE `doc_attachment` (
