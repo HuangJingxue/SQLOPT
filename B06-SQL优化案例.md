@@ -315,7 +315,7 @@ ALTER TABLE  SUB_INFO_VERIFICATION CONVERT TO CHARACTER SET utf8 COLLATE utf8_bi
 
 > 31.680S
 
-![1576061030890](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1576061030890.png)
+![1576061030890](pic/1576061030890.png)
 
 采用结果放到in当中直接执行：
 
