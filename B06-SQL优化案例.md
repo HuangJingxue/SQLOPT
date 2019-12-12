@@ -1,11 +1,11 @@
-# 一次表字符集不同引起的血案
+# 中合担保SQL优化 v.2019.12.11
 
+[TOC]
 
-
-源SQL
+## 源SQL
 
 ```sql
-explain SELECT
+SELECT
 	O.AttachmentNo AS AttachmentNo,
 	O.FileName AS FileName,
 	O.FileType AS FileType,
@@ -67,11 +67,11 @@ ORDER BY
 39.821s 8条
 ```
 
-![1575944128823](pic\1575944128823.png)
+![1575944128823](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1575944128823.png)
 
-![1575944137982](pic\1575944137982.png)
+![1575944137982](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1575944137982.png)
 
-![1576054357893](pic\1576054357893.png)
+![1576054357893](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1576054357893.png)
 
 ```sql
 CREATE TABLE `doc_attachment` (
@@ -124,6 +124,8 @@ CREATE TABLE `sub_info_verification` (
 ) ENGINE=InnoDB DEFAULT CHARSET=gbk
 ```
 
+## 排序字段优化
+
 依据执行计划将排序字段添加到索引中：
 
 ```sql
@@ -134,7 +136,7 @@ alter table add index i_doc_att('DOCNO','BEGINTIME')
 
 > 通过验证，对性能提升没作用。已回退。
 
-
+## 子句拆分查找原因
 
 通过由内到外拆分SQL，查找原因：
 
@@ -270,3 +272,187 @@ WHERE
 >主要原因是DOC_ATTACHMENT.O.DOCNO 字段与SUB_INFO_VERIFICATION.SIV2.DOCNO 比较性能消耗较大。通过比对表的DDL，两边字符集不同。
 >
 >建议将两张表的字符集调整相同。
+
+## 字符集统一
+
+```
+ALTER TABLE  SUB_INFO_VERIFICATION DEFAULT CHARACTER SET utf8 COLLATE utf8_bin; --字段未修改没有作用
+
+
+ALTER TABLE  SUB_INFO_VERIFICATION CONVERT TO CHARACTER SET utf8 COLLATE utf8_bin; --字段修改时间稍许提升
+```
+
+> 31.680S
+
+![1576061030890](C:\Users\Apple\AppData\Roaming\Typora\typora-user-images\1576061030890.png)
+
+采用结果放到in当中直接执行：
+
+```sql
+SELECT
+	O.DOCNO AS DOCNO
+FROM
+	DOC_ATTACHMENT O
+WHERE
+	O.DOCNO IN (
+2017121300000049,
+2017122800000016,
+2017122800000045,
+2018042400000028,
+2018062400000002,
+2018082400000004,
+2018092400000002,
+2018102400000002,
+2018112400000002,
+2018122400000002,
+2019012400000025,
+2019030400000015,
+2019032400000001,
+2019042500000001,
+2019052400000023,
+2019062400000077,
+2019072400000020,
+2019082400000001,
+2019092400000008,
+2019092600000001,
+2019102400000004,
+2019112400000012,
+2019120900000007,
+2019010800000016,
+2019010800000030,
+2019091800000010)
+
+0.541s  8条
+
+2017122800000045
+2018042400000028
+2018062400000002
+2018122400000002
+2019010800000016
+2019010800000030
+2019091800000010
+2019091800000010
+```
+
+## IN改为JOIN
+
+通过改写该句，将in改为jion
+
+```sql
+SELECT
+	O.DOCNO AS DOCNO
+FROM
+	DOC_ATTACHMEN O
+join (SELECT
+			SIV2.DOCNO AS DOCNO
+		FROM
+			SUB_INFO_VERIFICATION SIV2
+		WHERE
+			SIV2.CUSTOMERID = 'ET0100000408'
+		UNION
+			SELECT
+				O.docno AS docno
+			FROM
+				DOC_ATTACHMENT O
+			WHERE
+				O.DOCNO IN (
+					SELECT
+						DR.DOCNO AS DOCNO
+					FROM
+						DOC_RELATIVE DR,
+						DOC_LIBRARY DL
+					WHERE
+						DR.docno = DL.DOCNO
+					AND DL.DOCTYPE = '100108'
+					AND DR.objectno IN (
+						SELECT
+							PI.progNo AS progNo
+						FROM
+							programmer_info PI
+						WHERE
+							PI.cust_id = 'ET0100000408'
+					)
+				)) M
+ON O.DOCNO = M.DOCNO
+
+0.408S 8条
+
+2017122800000045
+2018042400000028
+2018062400000002
+2018122400000002
+2019010800000016
+2019010800000030
+2019091800000010
+2019091800000010
+```
+
+## 优化后SQL
+
+```sql
+SELECT
+	O.AttachmentNo AS AttachmentNo,
+	O.FileName AS FileName,
+	O.FileType AS FileType,
+	O. PASSWORD AS PASSWORD,
+	O.ContentType AS ContentType,
+	O.EndTime AS EndTime,
+	O.ContentLength AS ContentLength,
+	O.INPUTUSER AS INPUTUSER,
+	O.REMARK AS REMARK,
+	O.UPLOADADDRESS AS UPLOADADDRESS,
+	O.UPLOADWAY AS UPLOADWAY,
+	O.PICTUREREMARK AS PICTUREREMARK,
+	O.FILEPATH AS FILEPATH
+FROM
+	DOC_ATTACHMENT O
+join (SELECT
+			SIV2.DOCNO AS DOCNO
+		FROM
+			SUB_INFO_VERIFICATION SIV2
+		WHERE
+			SIV2.CUSTOMERID = 'ET0100000408'
+		UNION
+			SELECT
+				O.docno AS docno
+			FROM
+				DOC_ATTACHMENT O
+			WHERE
+				O.DOCNO IN (
+					SELECT
+						DR.DOCNO AS DOCNO
+					FROM
+						DOC_RELATIVE DR,
+						DOC_LIBRARY DL
+					WHERE
+						DR.docno = DL.DOCNO
+					AND DL.DOCTYPE = '100108'
+					AND DR.objectno IN (
+						SELECT
+							PI.progNo AS progNo
+						FROM
+							programmer_info PI
+						WHERE
+							PI.cust_id = 'ET0100000408'
+					)
+				)) M
+ON O.DOCNO = M.DOCNO
+ORDER BY
+	O.BEGINTIME DESC
+
+0.484s 8条记录
+
+
+```
+
+## SQL优化结果
+
+| 序号 | 优化之前 | 优化之后 |
+| ---- | -------- | -------- |
+| 1    | 39.821s  | 0.484s   |
+
+## 总结
+
+- 字符集修改为一致，性能提升8S，不是最终原因
+- 通过将IN子句修改为JOIN方式问题解决
+- 最外层的子句多余改写已经撤销掉

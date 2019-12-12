@@ -6,7 +6,7 @@
 
 · 如果是OLTP场景，建议做分页来提高效率
 
-![](D:\智能团队相关资料\08_学习内容\03_github仓库\SQLOPT\pic\wps1.jpg)
+![1](D:\智能团队相关资料\08_学习内容\03_github仓库\SQLOPT\pic\wps1.jpg)
 
 ![img](pic\wps1.jpg)
 
