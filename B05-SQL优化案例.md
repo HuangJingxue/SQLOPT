@@ -1,10 +1,12 @@
 # **老板电器SQL优化 v.2019.12.10**
 
 **通过本次优化沉淀：SQL优化需要先与客户沟通是应用在什么业务场景**
+```wiki
 
 · 如果是分析型业务场景，就是要返回那么多的数据，建议采用分析型的数据库类型(ploardb，ADS,dataworks等)
 
 · 如果是OLTP场景，建议做分页来提高效率
+```
 
 ![1](D:\智能团队相关资料\08_学习内容\03_github仓库\SQLOPT\pic\wps1.jpg)
 
@@ -14,7 +16,8 @@
 
  
 
-**源SQL**  展开源码 
+**源SQL**
+```sql
 
 SELECT m.*,ml.ml_name,m2.m_name as m_recommend_name,
 
@@ -27,10 +30,11 @@ LEFT JOIN fx_members as m2 on m.m_recommended=m2.m_id
 LEFT JOIN fx_members_level as ml on m.ml_id=ml.ml_id 
 
 WHERE ( (m.m_create_time BETWEEN '2018-12-03 00:00:00' AND '2019-01-04 00:00:00' ) )
-
+```
  
 
-**SQL优化过程**  展开源码 
+**SQL优化过程**  
+```sql
 
 总行数
 
@@ -47,10 +51,11 @@ mysql>SELECT count(*) FROM fx_members;
 +--------------------+
 
 返回行数：[1]，耗时：101 ms.
-
+```
  
 
 原SQL
+```sql
 
 SELECT m.*,ml.ml_name,m2.m_name as m_recommend_name,
 
@@ -67,12 +72,13 @@ WHERE ( (m.m_create_time BETWEEN '2018-12-03 00:00:00' AND '2019-01-04 00:00:00'
  
 
 24.490s 68129条
-
+```
  
 
  
 
 缩小结果集
+```sql
 
 select m.*,ml.ml_name,m2.m_name as m_recommend_name,(select sum(o_pay) from fx_orders where o_pay_status=1 and m_id=m.m_id) as totalpay 
 
@@ -86,34 +92,34 @@ left join  fx_members_level as ml on m.ml_id=ml.ml_id
 
 24.490s 68129条
 
- 
+ ```
 
  
 
-时间未有改变，查看执行计划，不走索引
+> 时间未有改变，查看执行计划，不走索引
 
  
 
  
-
+```sql
 select * from fx_members where m.m_create_time BETWEEN '2018-12-03 00:00:00' AND '2019-01-04 00:00:00'
 
 2.741s 68129条 --不走索引
-
+```
  
 
- 
+ ```sql
 
 select * from fx_members where m.m_create_time > '2018-12-03 00:00:00'
 
 不走索引
-
+```
  
 
  
 
 验证为什么create_time 有索引但是不走
-
+ ```sql
 mysql> explain select * from fx_members where m_create_time > '2018-12-03 00:00:00';
 
 +----+-------------+------------+------+---------------+------+---------+------+------+-------------+
@@ -146,12 +152,12 @@ mysql> explain select m_id from fx_members where m_create_time > '2018-12-03 00:
 
 1 row in set (0.00 sec)
 
+ ```
+
+> 是由于返回的字段列较多，优化器判断走索引不如直接全表扫描
+
  
-
-是由于返回的字段列较多，优化器判断走索引不如直接全表扫描
-
- 
-
+```sql
 只获取需要字段
 
 select m.m_id,m.m_name,m.open_source,m.m_verify,m.is_fenxiao,m.total_point,m.m_create_time,m.m_last_login_time,m.m_from_url,m.m_from,ml.ml_name,m2.m_name as m_recommend_name,(select sum(o_pay) from fx_orders where o_pay_status=1 and m_id=m.m_id) as totalpay from 
@@ -167,10 +173,11 @@ left join  fx_members_level as ml on m.ml_id=ml.ml_id
  
 
 6.988s
-
+```
  
 
 不强制
+```sql
 
 select m.m_id,m.m_name,m.open_source,m.m_verify,m.is_fenxiao,m.total_point,m.m_create_time,m.m_last_login_time,m.m_from_url,m.m_from,ml.ml_name,m2.m_name as m_recommend_name,(select sum(o_pay) from fx_orders where o_pay_status=1 and m_id=m.m_id) as totalpay from 
 
@@ -184,11 +191,12 @@ left join  fx_members_level as ml on m.ml_id=ml.ml_id
 
 6.044s
 
- 
+ ```
 
  
 
 强制
+```sql
 
 select m.m_id,m.m_name,m.open_source,m.m_verify,m.is_fenxiao,m.total_point,m.m_create_time,m.m_last_login_time,m.m_from_url,m.m_from,ml.ml_name,m2.m_name as m_recommend_name,(select sum(o_pay) from fx_orders where o_pay_status=1 and m_id=m.m_id) as totalpay from 
 
@@ -202,11 +210,12 @@ left join  fx_members_level as ml on m.ml_id=ml.ml_id
 
 5.892s
 
- 
+ ```
 
  
 
 强制，并区间范围采用>= <=
+```sql
 
 select m.m_id,m.m_name,m.open_source,m.m_verify,m.is_fenxiao,m.total_point,m.m_create_time,m.m_last_login_time,m.m_from_url,m.m_from,ml.ml_name,m2.m_name as m_recommend_name,(select sum(o_pay) from fx_orders where o_pay_status=1 and m_id=m.m_id) as totalpay from 
 
@@ -217,12 +226,12 @@ left join fx_members as m2 on m.m_recommended=m2.m_id
 left join  fx_members_level as ml on m.ml_id=ml.ml_id
 
 5.986s
-
+```
  
 
  
 
- 
+ ```sql
 
 SELECT
 
@@ -239,9 +248,9 @@ WHERE
 AND m_create_time <= '2019-01-04 00:00:00'
 
 0.473s
-
+```
  
-
+```sql
 SELECT
 
 ​	m_id,
@@ -294,10 +303,10 @@ WHERE
 
 6.021S 
 
- 
+ ```
 
  
-
+```sql
 SELECT
 
 ​	a.m_id,
@@ -348,10 +357,10 @@ join (
 
 on a.m_id = m.m_id
 
- 
+ ```
 
  
-
+```sql
 SELECT
 
 ​	m_id,
@@ -389,7 +398,7 @@ WHERE
 AND m_create_time <= '2019-01-04 00:00:00';
 
 6.814s 
-
+```
  
 
  
@@ -400,7 +409,7 @@ AND m_create_time <= '2019-01-04 00:00:00';
 
 返回到业务端的数据进行分页展示 --- 业务上不允许，是做导出数据用。建议放到数仓
 
- 
+ ```sql
 
 SELECT
 
@@ -458,11 +467,12 @@ limit 100,10;
 
 0.186s
 
- 
+ ```
 
  
 
-**表的ddl**  展开源码 
+**表的ddl** 
+```sql
 
 扩展：
 
@@ -659,8 +669,10 @@ CREATE TABLE `fx_members` (
   KEY `m_abc_openid` (`m_abc_openid`)
 
 ) ENGINE=InnoDB AUTO_INCREMENT=610546 DEFAULT CHARSET=utf8 COMMENT='会员基本表';
+```
 
-**profiles**  展开源码 
+**profiles** 
+```sql
 
 set profiling=1;
 
@@ -729,7 +741,7 @@ show PROFILE ALL for query 62;
  
 
 show profile context switches for query 88;
-
+```
 
 
 ```sql
